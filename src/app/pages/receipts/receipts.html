@@ -1,0 +1,202 @@
+<section class="mx-auto max-w-6xl px-4 py-8">
+  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div>
+          <span class="inline-block border-2 border-black bg-white px-3 py-1 font-mono text-xs font-bold uppercase">
+            Expense Logger
+          </span>
+      <h2 class="mt-3 border-4 border-black bg-white px-4 py-2 font-display text-3xl font-black uppercase shadow-[8px_8px_0_0_#000000]">
+        Receipts
+      </h2>
+    </div>
+    <button type="button" (click)="openModal()" class="brutal-btn bg-brutal-yellow text-black">
+      + Upload / Manual Entry
+    </button>
+  </div>
+
+  @if (showReconcileBanner()) {
+    <div class="mb-6 border-4 border-black bg-brutal-green p-4 shadow-[4px_4px_0_0_#000000]">
+      <p class="font-mono text-sm font-bold uppercase">
+        Reconciliation Mode — Match gathered shopping items to your receipt below.
+      </p>
+    </div>
+  }
+
+  <div class="grid gap-4">
+    @for (receipt of store.receipts(); track receipt.id) {
+      <article class="border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 class="font-display text-xl font-black uppercase">{{ receipt.merchantName }}</h3>
+            <p class="font-mono text-sm">{{ receipt.date }} · {{ receipt.paymentMethod }}</p>
+            <p class="mt-1 font-mono text-xs">ETR: {{ receipt.etrNumber }} · PIN: {{ receipt.kraPin }}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-mono text-2xl font-black">KES {{ receipt.totalKes | number }}</p>
+            <span
+              class="mt-1 inline-block border-2 border-black px-2 py-0.5 font-mono text-xs font-bold uppercase"
+              [class.bg-brutal-green]="receipt.isTaxDeductible"
+              [class.bg-brutal-pink]="!receipt.isTaxDeductible"
+            >
+                  {{ receipt.isTaxDeductible ? 'KRA Deductible' : 'Personal' }}
+                </span>
+          </div>
+        </div>
+        <ul class="mt-4 space-y-1 border-t-2 border-black pt-3 font-mono text-sm">
+          @for (line of receipt.items; track line.description) {
+            <li class="flex justify-between">
+              <span>{{ line.description }}</span>
+              <span>KES {{ line.amountKes | number }}</span>
+            </li>
+          }
+        </ul>
+        @if (receipt.matchedShoppingItemIds?.length) {
+          <p class="mt-3 font-mono text-xs font-bold uppercase text-brutal-charcoal/70">
+            Matched {{ receipt.matchedShoppingItemIds!.length }} shopping item(s)
+          </p>
+        }
+        <button
+          type="button"
+          (click)="store.removeReceipt(receipt.id)"
+          class="mt-3 font-mono text-xs font-bold uppercase text-brutal-pink underline"
+        >
+          Delete Receipt
+        </button>
+      </article>
+    }
+  </div>
+</section>
+
+@if (modalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-10">
+    <div
+      class="w-full max-w-2xl border-4 border-black bg-white shadow-[8px_8px_0_0_#000000]"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="flex items-center justify-between border-b-4 border-black bg-brutal-yellow px-4 py-3">
+        <h3 class="font-display text-xl font-black uppercase">New Receipt</h3>
+        <button type="button" (click)="closeModal()" class="font-mono text-sm font-bold uppercase">
+          ✕ Close
+        </button>
+      </div>
+
+      <form (ngSubmit)="submitReceipt()" class="space-y-5 p-5">
+        <!-- Dropzone -->
+        <div
+          class="border-4 border-dashed border-black bg-brutal-charcoal/5 p-8 text-center"
+          (dragover)="onDragOver($event)"
+          (drop)="onDrop($event)"
+        >
+          <p class="font-mono text-sm font-bold uppercase">Drag & Drop Receipt Image</p>
+          <p class="mt-1 font-mono text-xs">or use camera / file picker</p>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            (change)="onFileSelected($event)"
+            class="mt-4 w-full font-mono text-xs"
+          />
+          @if (uploadedFileName()) {
+            <p class="mt-2 font-mono text-xs text-brutal-green">Attached: {{ uploadedFileName() }}</p>
+          }
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label class="brutal-label">Merchant Name</label>
+            <input [(ngModel)]="draft.merchantName" name="merchant" required class="brutal-input w-full" />
+          </div>
+          <div>
+            <label class="brutal-label">Date</label>
+            <input [(ngModel)]="draft.date" name="date" type="date" required class="brutal-input w-full" />
+          </div>
+          <div>
+            <label class="brutal-label">Payment Method</label>
+            <select [(ngModel)]="draft.paymentMethod" name="payment" class="brutal-input w-full">
+              @for (method of paymentMethods; track method) {
+                <option [value]="method">{{ method }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="brutal-label">Total Amount (KES)</label>
+            <input
+              [(ngModel)]="draft.totalKes"
+              name="total"
+              type="number"
+              min="0"
+              required
+              class="brutal-input w-full"
+            />
+          </div>
+          <div>
+            <label class="brutal-label">VAT Rate</label>
+            <select [(ngModel)]="draft.vatRate" name="vat" class="brutal-input w-full">
+              @for (rate of vatRates; track rate) {
+                <option [value]="rate">{{ rate }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Line Items -->
+        <div>
+          <p class="brutal-label mb-2">Line Items</p>
+          @for (line of draft.items; track $index; let i = $index) {
+            <div class="mb-2 grid grid-cols-5 gap-2">
+              <input
+                [(ngModel)]="line.description"
+                [name]="'desc-' + i"
+                placeholder="Description"
+                class="brutal-input col-span-3"
+              />
+              <input
+                [(ngModel)]="line.amountKes"
+                [name]="'amt-' + i"
+                type="number"
+                min="0"
+                placeholder="KES"
+                class="brutal-input"
+              />
+              <button type="button" (click)="removeLineItem(i)" class="brutal-btn bg-brutal-pink text-white text-xs">
+                ✕
+              </button>
+            </div>
+          }
+          <button type="button" (click)="addLineItem()" class="brutal-btn mt-1 bg-white text-sm">
+            + Line Item
+          </button>
+        </div>
+
+        <!-- Reconciliation -->
+        @if (store.completedItems().length) {
+          <div class="border-4 border-black bg-brutal-green/30 p-4">
+            <p class="mb-3 font-mono text-xs font-bold uppercase">Match Shopping Items</p>
+            <div class="space-y-2">
+              @for (item of store.completedItems(); track item.id) {
+                <label class="flex cursor-pointer items-center gap-2 font-mono text-sm">
+                  <input
+                    type="checkbox"
+                    [checked]="selectedMatches().includes(item.id)"
+                    (change)="toggleMatch(item.id)"
+                    class="brutal-checkbox"
+                  />
+                  {{ item.name }} — KES {{ item.estimatedCostKes | number }}
+                </label>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="flex gap-3">
+          <button type="submit" class="brutal-btn flex-1 bg-black text-brutal-yellow">
+            Save Receipt
+          </button>
+          <button type="button" (click)="closeModal()" class="brutal-btn bg-white">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
