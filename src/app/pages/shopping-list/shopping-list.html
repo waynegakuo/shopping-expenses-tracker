@@ -15,6 +15,67 @@
     </p>
   </div>
 
+  <!-- Scan Receipt -->
+  <section
+    class="mb-8 border-4 border-dashed border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]"
+    (dragover)="onScanDragOver($event)"
+    (drop)="onScanDrop($event)"
+  >
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="font-mono text-xs font-bold uppercase tracking-wider">Scan Shopping List / Receipt</p>
+        <p class="mt-1 max-w-xl font-mono text-xs text-brutal-charcoal/80">
+          Snap or upload a photo — we’ll OCR item names &amp; KES prices and bulk-add them for review.
+        </p>
+      </div>
+      @if (scanner.scanState().status === 'scanning') {
+        <span class="border-2 border-black bg-brutal-orange px-3 py-1 font-mono text-xs font-bold uppercase">
+          {{ scanner.scanState().message }}
+        </span>
+      }
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <label class="brutal-btn cursor-pointer bg-brutal-green text-black">
+        📷 Take Photo
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="hidden"
+          (change)="onScanFileSelected($event)"
+        />
+      </label>
+      <label class="brutal-btn cursor-pointer bg-white text-black">
+        ↑ Upload Image
+        <input type="file" accept="image/*" class="hidden" (change)="onScanFileSelected($event)" />
+      </label>
+    </div>
+
+    @if (scanner.scanState().status === 'scanning') {
+      <div class="mt-4 border-2 border-black bg-white p-1">
+        <div
+          class="h-4 bg-brutal-yellow transition-all"
+          [style.width.%]="scanner.scanState().progress"
+        ></div>
+      </div>
+    }
+
+    @if (scanner.previewUrl() && scanner.scanState().status !== 'scanning') {
+      <img
+        [src]="scanner.previewUrl()"
+        alt="Receipt preview"
+        class="mt-4 max-h-48 border-4 border-black object-contain shadow-[4px_4px_0_0_#000000]"
+      />
+    }
+
+    @if (scanner.scanState().status === 'error') {
+      <p class="mt-3 border-2 border-black bg-brutal-pink px-3 py-2 font-mono text-xs font-bold uppercase">
+        {{ scanner.scanState().message }}
+      </p>
+    }
+  </section>
+
   <!-- Add Item Form -->
   <form
     (ngSubmit)="addItem()"
@@ -125,3 +186,76 @@
     </a>
   </div>
 </aside>
+
+@if (reviewOpen()) {
+  <div class="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-10">
+    <div class="w-full max-w-3xl border-4 border-black bg-white shadow-[8px_8px_0_0_#000000]">
+      <div class="flex items-center justify-between border-b-4 border-black bg-brutal-green px-4 py-3">
+        <div>
+          <h3 class="font-display text-xl font-black uppercase">Review Extracted Items</h3>
+          <p class="font-mono text-xs">
+            {{ selectedExtractedCount() }} of {{ extractedItems().length }} selected
+          </p>
+        </div>
+        <button type="button" (click)="closeReview()" class="font-mono text-sm font-bold uppercase">
+          ✕ Close
+        </button>
+      </div>
+
+      <div class="max-h-[60vh] space-y-3 overflow-y-auto p-4">
+        @for (item of extractedItems(); track $index; let i = $index) {
+          <div
+            class="grid gap-2 border-4 border-black p-3 sm:grid-cols-12"
+            [class.bg-brutal-yellow]="item.selected"
+            [class.opacity-50]="!item.selected"
+          >
+            <label class="flex items-center gap-2 sm:col-span-1">
+              <input
+                type="checkbox"
+                [checked]="item.selected"
+                (change)="toggleExtractedItem(i)"
+                class="brutal-checkbox"
+              />
+            </label>
+            <input
+              [(ngModel)]="item.name"
+              [name]="'ext-name-' + i"
+              class="brutal-input sm:col-span-5"
+            />
+            <select [(ngModel)]="item.category" [name]="'ext-cat-' + i" class="brutal-input sm:col-span-3">
+              @for (cat of categories; track cat) {
+                <option [value]="cat">{{ cat }}</option>
+              }
+            </select>
+            <input
+              [(ngModel)]="item.estimatedCostKes"
+              [name]="'ext-cost-' + i"
+              type="number"
+              min="0"
+              class="brutal-input sm:col-span-2"
+            />
+            <button
+              type="button"
+              (click)="removeExtractedItem(i)"
+              class="brutal-btn bg-brutal-pink text-xs text-white sm:col-span-1"
+            >
+              ✕
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="flex flex-wrap gap-3 border-t-4 border-black p-4">
+        <button
+          type="button"
+          (click)="confirmExtractedItems()"
+          [disabled]="selectedExtractedCount() === 0"
+          class="brutal-btn flex-1 bg-black text-brutal-yellow disabled:opacity-40"
+        >
+          + Add {{ selectedExtractedCount() }} Item(s) to List
+        </button>
+        <button type="button" (click)="closeReview()" class="brutal-btn bg-white">Cancel</button>
+      </div>
+    </div>
+  </div>
+}

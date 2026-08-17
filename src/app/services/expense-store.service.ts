@@ -96,6 +96,20 @@ export class ExpenseStoreService {
     this.shoppingItems.update((items) => [...items, item]);
   }
 
+  addShoppingItems(
+    entries: { name: string; category: ShoppingCategory; estimatedCostKes: number }[],
+  ): number {
+    const newItems: ShoppingItem[] = entries.map((entry) => ({
+      id: crypto.randomUUID(),
+      name: entry.name.trim(),
+      category: entry.category,
+      estimatedCostKes: entry.estimatedCostKes,
+      completed: false,
+    }));
+    this.shoppingItems.update((items) => [...items, ...newItems]);
+    return newItems.length;
+  }
+
   toggleShoppingItem(id: string): void {
     this.shoppingItems.update((items) =>
       items.map((item) =>
