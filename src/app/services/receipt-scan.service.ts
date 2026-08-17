@@ -1,7 +1,9 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, WritableSignal } from '@angular/core';
 import { ExtractedShoppingItem } from '../models/extracted-item.model';
 import { ParsedReceiptOcr } from '../models/extracted-receipt.model';
+import { formatScanError, preprocessImageForOcr } from './image-preprocess';
 import { parseReceiptLineItemsText, parseShoppingListText } from './receipt-text-parser';
+import { loadTesseractApi, TESSERACT_WORKER_OPTIONS } from './tesseract-browser';
 
 export type ScanProgress = {
   status: 'idle' | 'scanning' | 'done' | 'error';
@@ -29,17 +31,18 @@ export class ReceiptScanService {
 
   async extractItemsFromImage(file: File): Promise<ExtractedShoppingItem[]> {
     this.setPreview(file, 'shopping');
-    this.scanState.set({ status: 'scanning', progress: 0, message: 'Reading list…' });
+    this.scanState.set({ status: 'scanning', progress: 0, message: 'Preparing image…' });
 
     try {
-      const text = await this.runOcr(file, 'shopping');
+      const text = await this.runOcr(file, this.scanState);
       const items = parseShoppingListText(text);
 
       if (items.length === 0) {
         this.scanState.set({
           status: 'error',
           progress: 100,
-          message: 'No items detected. Try a clearer photo of your shopping list.',
+          message:
+            'No items detected. Use a flat, well-lit photo with one item per line — or add manually.',
         });
         return [];
       }
@@ -50,11 +53,11 @@ export class ReceiptScanService {
         message: `Found ${items.length} item${items.length === 1 ? '' : 's'}`,
       });
       return items;
-    } catch {
+    } catch (error) {
       this.scanState.set({
         status: 'error',
         progress: 0,
-        message: 'Scan failed. Please retake the photo or add items manually.',
+        message: formatScanError(error),
       });
       return [];
     }
@@ -62,10 +65,10 @@ export class ReceiptScanService {
 
   async extractReceiptFromImage(file: File): Promise<ParsedReceiptOcr | null> {
     this.setPreview(file, 'receipt');
-    this.receiptScanState.set({ status: 'scanning', progress: 0, message: 'Reading receipt…' });
+    this.receiptScanState.set({ status: 'scanning', progress: 0, message: 'Preparing image…' });
 
     try {
-      const text = await this.runOcr(file, 'receipt');
+      const text = await this.runOcr(file, this.receiptScanState);
       const parsed = parseReceiptLineItemsText(text);
 
       if (parsed.lineItems.length === 0) {
@@ -73,7 +76,7 @@ export class ReceiptScanService {
           status: 'error',
           progress: 100,
           message:
-            'No line items detected. Try a clearer photo showing item names, quantities, and amounts.',
+            'No line items detected. Ensure item names, quantities, and KES amounts are visible — or enter manually.',
         });
         return null;
       }
@@ -84,11 +87,11 @@ export class ReceiptScanService {
         message: `Found ${parsed.lineItems.length} line item${parsed.lineItems.length === 1 ? '' : 's'}`,
       });
       return parsed;
-    } catch {
+    } catch (error) {
       this.receiptScanState.set({
         status: 'error',
         progress: 0,
-        message: 'Scan failed. Retake the photo or enter line items manually.',
+        message: formatScanError(error),
       });
       return null;
     }
@@ -102,28 +105,45 @@ export class ReceiptScanService {
     this.clearPreviewFor('receipt');
   }
 
-  private async runOcr(file: File, mode: 'shopping' | 'receipt'): Promise<string> {
-    const stateSignal = mode === 'shopping' ? this.scanState : this.receiptScanState;
+  private async runOcr(file: File, stateSignal: WritableSignal<ScanProgress>): Promise<string> {
+    stateSignal.set({ status: 'scanning', progress: 5, message: 'Preparing image…' });
+    const imageBlob = await preprocessImageForOcr(file);
 
-    const { createWorker } = await import('tesseract.js');
-    const worker = await createWorker('eng', 1, {
+    stateSignal.set({ status: 'scanning', progress: 10, message: 'Loading OCR engine…' });
+    const Tesseract = await loadTesseractApi();
+
+    if (typeof Tesseract.recognize !== 'function') {
+      throw new Error('OCR engine failed to load. Please refresh and try again.');
+    }
+
+    stateSignal.set({ status: 'scanning', progress: 15, message: 'Reading text (first scan may take 20s)…' });
+
+    const { data } = await Tesseract.recognize(imageBlob, 'eng', {
+      ...TESSERACT_WORKER_OPTIONS,
       logger: (info) => {
+        if (info.status === 'loading language traineddata') {
+          stateSignal.set({
+            status: 'scanning',
+            progress: 20,
+            message: 'Downloading OCR language data…',
+          });
+        }
         if (info.status === 'recognizing text') {
-          const progress = Math.round((info.progress ?? 0) * 100);
+          const progress = 25 + Math.round((info.progress ?? 0) * 70);
           stateSignal.set({
             status: 'scanning',
             progress,
-            message: `Extracting text… ${progress}%`,
+            message: `Extracting text… ${Math.round((info.progress ?? 0) * 100)}%`,
           });
         }
       },
     });
 
-    const {
-      data: { text },
-    } = await worker.recognize(file);
-    await worker.terminate();
-    return text;
+    if (!data.text.trim()) {
+      throw new Error('No text found in image. Try a clearer, closer photo.');
+    }
+
+    return data.text;
   }
 
   private clearPreviewFor(mode: 'shopping' | 'receipt'): void {
