@@ -7,44 +7,12 @@
         Active Shopping Mode
       </span>
       <h2 class="mt-3 border-4 border-black bg-white px-4 py-2 font-display text-3xl font-black uppercase shadow-[8px_8px_0_0_#000000]">
-        Shopping List
+        Shopping
       </h2>
     </div>
     <p class="font-mono text-sm">
       {{ store.pendingItemCount() }} pending · {{ store.completedItems().length }} gathered
     </p>
-  </div>
-
-  <!-- Monthly Spend & Price Alerts -->
-  <div class="mb-8 grid gap-4 md:grid-cols-2">
-    <div class="border-4 border-black bg-brutal-yellow p-4 shadow-[4px_4px_0_0_#000000]">
-      <p class="font-mono text-xs font-bold uppercase">{{ store.currentMonthLabel() }} Spend</p>
-      <p class="font-display text-3xl font-black">KES {{ store.currentMonthSpendKes() | number }}</p>
-      <p class="mt-1 font-mono text-xs text-brutal-charcoal/70">
-        Actual spend from receipts — prices set at checkout
-      </p>
-    </div>
-    <div class="border-4 border-black bg-white p-4 shadow-[4px_4px_0_0_#000000]">
-      <p class="font-mono text-xs font-bold uppercase">Price Increases Since Last Run</p>
-      @if (store.priceIncreases().length > 0) {
-        <p class="font-display text-3xl font-black text-brutal-pink">
-          {{ store.priceIncreases().length }} item{{ store.priceIncreases().length === 1 ? '' : 's' }}
-        </p>
-        <ul class="mt-2 space-y-1 font-mono text-xs">
-          @for (inc of store.priceIncreases().slice(0, 3); track inc.itemName) {
-            <li class="flex justify-between gap-2 border-t border-black/20 pt-1">
-              <span>{{ inc.itemName }}</span>
-              <span class="font-bold text-brutal-pink">+KES {{ inc.changeKes | number }} (+{{ inc.changePercent }}%)</span>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="font-display text-xl font-black text-brutal-green">No increases detected</p>
-        <p class="mt-1 font-mono text-xs text-brutal-charcoal/70">
-          Compares latest receipt prices to your previous shopping run
-        </p>
-      }
-    </div>
   </div>
 
   <!-- Add Items Tabs -->
@@ -87,7 +55,7 @@
           <div>
             <p class="font-mono text-xs font-bold uppercase tracking-wider">Scan Your Shopping List</p>
             <p class="mt-1 max-w-xl font-mono text-xs text-brutal-charcoal/80">
-              Snap your written list — we extract item names only. Prices are recorded when you checkout with a receipt.
+              Snap your written list — we extract item names only. Prices are recorded at checkout.
             </p>
           </div>
           @if (scanner.scanState().status === 'scanning') {
@@ -202,21 +170,12 @@
                   @if (price.lastDate) {
                     · {{ price.lastDate | date:'d MMM y' }}
                   }
-                  @if (price.lastMerchant) {
-                    · {{ price.lastMerchant }}
-                  }
                 </p>
-              } @else {
-                <p class="mt-2 font-mono text-xs text-brutal-charcoal/60">No price history yet</p>
               }
 
               @if (price.increased && price.changeKes) {
                 <span class="mt-1 inline-block border-2 border-black bg-brutal-pink px-2 py-0.5 font-mono text-xs font-bold uppercase">
-                  ↑ +KES {{ price.changeKes | number }} (+{{ price.changePercent }}%) vs last run
-                </span>
-              } @else if (price.decreased && price.changeKes) {
-                <span class="mt-1 inline-block border-2 border-black bg-brutal-green px-2 py-0.5 font-mono text-xs font-bold uppercase">
-                  ↓ KES {{ (-price.changeKes!) | number }} ({{ price.changePercent }}%) vs last run
+                  ↑ +KES {{ price.changeKes | number }} vs last run
                 </span>
               }
             </div>
@@ -234,41 +193,10 @@
       </article>
     } @empty {
       <p class="col-span-full border-4 border-dashed border-black p-8 text-center font-mono">
-        No items yet. Scan your list or add items above — prices come from receipts at checkout.
+        No items yet. Scan your list or add items above.
       </p>
     }
   </div>
-
-  <!-- Full Price Increase Table -->
-  @if (store.priceIncreases().length > 0) {
-    <div class="mt-8 border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]">
-      <h3 class="mb-4 font-display text-lg font-black uppercase">Price Watch — All Increases</h3>
-      <div class="overflow-x-auto">
-        <table class="w-full font-mono text-sm">
-          <thead>
-            <tr class="border-b-2 border-black text-left text-xs uppercase">
-              <th class="pb-2 pr-4">Item</th>
-              <th class="pb-2 pr-4">Previous</th>
-              <th class="pb-2 pr-4">Current</th>
-              <th class="pb-2 pr-4">Change</th>
-              <th class="pb-2">Last Shop</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (inc of store.priceIncreases(); track inc.itemName) {
-              <tr class="border-b border-black/20">
-                <td class="py-2 pr-4 font-bold">{{ inc.itemName }}</td>
-                <td class="py-2 pr-4">KES {{ inc.previousPrice | number }}</td>
-                <td class="py-2 pr-4">KES {{ inc.currentPrice | number }}</td>
-                <td class="py-2 pr-4 font-bold text-brutal-pink">+KES {{ inc.changeKes | number }} (+{{ inc.changePercent }}%)</td>
-                <td class="py-2">{{ inc.currentDate | date:'d MMM y' }} · {{ inc.merchantName }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  }
 </section>
 
 <!-- Active Mode Dock -->
@@ -278,12 +206,12 @@
   <div class="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div class="grid grid-cols-2 gap-4 font-mono sm:flex sm:gap-8">
       <div>
-        <p class="text-xs font-bold uppercase">{{ store.currentMonthLabel() }}</p>
-        <p class="text-xl font-black">KES {{ store.currentMonthSpendKes() | number }}</p>
-      </div>
-      <div>
         <p class="text-xs font-bold uppercase">Items Gathered</p>
         <p class="text-xl font-black">{{ store.completedItems().length }} / {{ store.shoppingItems().length }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-bold uppercase">Still Pending</p>
+        <p class="text-xl font-black">{{ store.pendingItemCount() }}</p>
       </div>
     </div>
     <a

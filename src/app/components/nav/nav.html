@@ -1,16 +1,17 @@
 <header class="border-b-4 border-black bg-brutal-yellow px-4 py-4 shadow-[0_4px_0_0_#000000]">
   <div class="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div>
+    <a routerLink="/" class="group">
       <p class="font-mono text-xs font-bold uppercase tracking-widest">Kenya · KRA Ready</p>
-      <h1 class="font-display text-2xl font-black uppercase leading-none sm:text-3xl">
+      <h1 class="font-display text-2xl font-black uppercase leading-none sm:text-3xl group-hover:underline">
         Expense Tracker
       </h1>
-    </div>
+    </a>
     <nav class="flex flex-wrap gap-2">
       @for (link of links; track link.path) {
         <a
           [routerLink]="link.path"
           routerLinkActive="bg-black text-brutal-yellow shadow-none translate-x-1 translate-y-1"
+          [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
           class="border-2 border-black bg-white px-4 py-2 font-mono text-sm font-bold uppercase shadow-[4px_4px_0_0_#000000] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
         >
           {{ link.label }}

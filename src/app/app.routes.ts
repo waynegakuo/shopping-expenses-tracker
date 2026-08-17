@@ -1,13 +1,20 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'shopping-list', pathMatch: 'full' },
+  {
+    path: '',
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard').then((m) => m.Dashboard),
+  },
+  {
+    path: 'shopping',
+    loadComponent: () =>
+      import('./pages/shopping-list/shopping-list').then((m) => m.ShoppingList),
+  },
   {
     path: 'shopping-list',
-    loadComponent: () =>
-      import('./pages/shopping-list/shopping-list').then(
-        (m) => m.ShoppingList,
-      ),
+    redirectTo: 'shopping',
+    pathMatch: 'full',
   },
   {
     path: 'receipts',
