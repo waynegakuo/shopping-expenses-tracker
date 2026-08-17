@@ -1,0 +1,136 @@
+<section class="mx-auto max-w-6xl px-4 py-8">
+  <div class="mb-10">
+    <span class="inline-block border-2 border-black bg-brutal-yellow px-3 py-1 font-mono text-xs font-bold uppercase">
+      Overview
+    </span>
+    <h2 class="mt-3 border-4 border-black bg-white px-4 py-2 font-display text-3xl font-black uppercase shadow-[8px_8px_0_0_#000000]">
+      Dashboard
+    </h2>
+    <p class="mt-3 max-w-2xl font-mono text-sm text-brutal-charcoal/80">
+      Your monthly spend, price alerts, and quick links — head to Shopping when you’re ready to run errands.
+    </p>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="border-4 border-black bg-brutal-yellow p-4 shadow-[4px_4px_0_0_#000000]">
+      <p class="font-mono text-xs font-bold uppercase">{{ store.currentMonthLabel() }}</p>
+      <p class="font-display text-2xl font-black">KES {{ store.currentMonthSpendKes() | number }}</p>
+      <p class="mt-1 font-mono text-xs">Monthly spend</p>
+    </div>
+    <div class="border-4 border-black bg-brutal-orange p-4 shadow-[4px_4px_0_0_#000000]">
+      <p class="font-mono text-xs font-bold uppercase">Shopping List</p>
+      <p class="font-display text-2xl font-black">{{ store.pendingItemCount() }} pending</p>
+      <p class="mt-1 font-mono text-xs">{{ store.completedItems().length }} gathered</p>
+    </div>
+    <div class="border-4 border-black bg-white p-4 shadow-[4px_4px_0_0_#000000]">
+      <p class="font-mono text-xs font-bold uppercase">Price Increases</p>
+      <p class="font-display text-2xl font-black" [class.text-brutal-pink]="store.priceIncreases().length > 0">
+        {{ store.priceIncreases().length }}
+      </p>
+      <p class="mt-1 font-mono text-xs">Since last shopping run</p>
+    </div>
+    <div class="border-4 border-black bg-brutal-green p-4 shadow-[4px_4px_0_0_#000000]">
+      <p class="font-mono text-xs font-bold uppercase">KRA Deductible</p>
+      <p class="font-display text-2xl font-black">KES {{ store.totalDeductibleSpendKes() | number }}</p>
+      <p class="mt-1 font-mono text-xs">Total deductible spend</p>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="mb-10 grid gap-4 sm:grid-cols-3">
+    <a
+      routerLink="/shopping"
+      class="border-4 border-black bg-brutal-green p-5 shadow-[4px_4px_0_0_#000000] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
+    >
+      <p class="font-display text-lg font-black uppercase">Go Shopping →</p>
+      <p class="mt-2 font-mono text-xs">Add items, scan your list, check off as you shop</p>
+    </a>
+    <a
+      routerLink="/receipts"
+      class="border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
+    >
+      <p class="font-display text-lg font-black uppercase">Receipts →</p>
+      <p class="mt-2 font-mono text-xs">Log purchases and match checkout receipts</p>
+    </a>
+    <a
+      routerLink="/tax-tracker"
+      class="border-4 border-black bg-brutal-yellow p-5 shadow-[4px_4px_0_0_#000000] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
+    >
+      <p class="font-display text-lg font-black uppercase">Tax Tracker →</p>
+      <p class="mt-2 font-mono text-xs">KRA details, VAT claims, CSV export</p>
+    </a>
+  </div>
+
+  <div class="grid gap-8 lg:grid-cols-2">
+    <!-- Price Watch -->
+    <div class="border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <h3 class="font-display text-lg font-black uppercase">Price Watch</h3>
+        @if (store.priceIncreases().length > 0) {
+          <span class="border-2 border-black bg-brutal-pink px-2 py-0.5 font-mono text-xs font-bold uppercase">
+            {{ store.priceIncreases().length }} up
+          </span>
+        }
+      </div>
+      @if (store.priceIncreases().length > 0) {
+        <ul class="space-y-2 font-mono text-sm">
+          @for (inc of store.priceIncreases().slice(0, 5); track inc.itemName) {
+            <li class="flex justify-between gap-3 border-b-2 border-black/10 pb-2">
+              <span class="font-bold">{{ inc.itemName }}</span>
+              <span class="shrink-0 text-brutal-pink">+KES {{ inc.changeKes | number }} (+{{ inc.changePercent }}%)</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="font-mono text-sm text-brutal-green">No price increases detected since your last shop.</p>
+      }
+    </div>
+
+    <!-- Active List Preview -->
+    <div class="border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <h3 class="font-display text-lg font-black uppercase">Up Next</h3>
+        <a routerLink="/shopping" class="font-mono text-xs font-bold uppercase underline">View all →</a>
+      </div>
+      @if (store.shoppingItems().length > 0) {
+        <ul class="space-y-2 font-mono text-sm">
+          @for (item of store.shoppingItems().slice(0, 5); track item.id) {
+            <li class="flex items-center justify-between gap-3 border-b-2 border-black/10 pb-2">
+              <span [class.line-through]="item.completed" [class.opacity-50]="item.completed">{{ item.name }}</span>
+              <span
+                class="shrink-0 border border-black px-1.5 py-0.5 text-xs uppercase"
+                [class.bg-brutal-green]="item.completed"
+                [class.bg-brutal-orange]="!item.completed"
+              >
+                {{ item.completed ? 'Gathered' : 'Pending' }}
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="font-mono text-sm">Your list is empty.</p>
+        <a routerLink="/shopping" class="brutal-btn mt-4 inline-block bg-black text-brutal-yellow">Start Shopping</a>
+      }
+    </div>
+  </div>
+
+  <!-- Recent Receipts -->
+  @if (store.receipts().length > 0) {
+    <div class="mt-8 border-4 border-black bg-white p-5 shadow-[4px_4px_0_0_#000000]">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <h3 class="font-display text-lg font-black uppercase">Recent Receipts</h3>
+        <a routerLink="/receipts" class="font-mono text-xs font-bold uppercase underline">View all →</a>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        @for (receipt of store.receipts().slice(0, 3); track receipt.id) {
+          <div class="border-2 border-black p-3">
+            <p class="font-display font-black uppercase">{{ receipt.merchantName }}</p>
+            <p class="font-mono text-xs">{{ receipt.date | date:'d MMM y' }} · {{ receipt.paymentMethod }}</p>
+            <p class="mt-1 font-mono text-lg font-bold">KES {{ receipt.totalKes | number }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</section>
