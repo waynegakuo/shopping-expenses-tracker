@@ -25,10 +25,15 @@ export class ShoppingList {
 
   readonly reviewOpen = signal(false);
   readonly extractedItems = signal<ExtractedShoppingItem[]>([]);
+  readonly addMode = signal<'scan' | 'manual'>('scan');
 
   newName = '';
   newCategory: ShoppingCategory = 'Groceries';
   newCost: number | null = null;
+
+  setAddMode(mode: 'scan' | 'manual'): void {
+    this.addMode.set(mode);
+  }
 
   addItem(): void {
     if (!this.newName.trim() || this.newCost === null || this.newCost < 0) {
