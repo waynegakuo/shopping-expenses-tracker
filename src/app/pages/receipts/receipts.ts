@@ -42,6 +42,7 @@ export class Receipts implements OnInit {
     this.draft = this.emptyDraft();
     this.selectedMatches.set([]);
     this.uploadedFileName.set(null);
+    this.checkoutSuccess.set(null);
     this.modalOpen.set(true);
   }
 
@@ -84,6 +85,8 @@ export class Receipts implements OnInit {
     }
   }
 
+  readonly checkoutSuccess = signal<string | null>(null);
+
   submitReceipt(): void {
     if (!this.draft.merchantName.trim()) {
       return;
@@ -93,11 +96,25 @@ export class Receipts implements OnInit {
         ? this.draft.items
         : [{ description: 'General purchase', amountKes: this.draft.totalKes }];
 
-    this.store.addReceipt({
-      ...this.draft,
-      items,
-      matchedShoppingItemIds: this.selectedMatches(),
-    });
+    const matched = this.selectedMatches();
+    const fromCheckout = this.showReconcileBanner();
+    const beforeCount = this.store.shoppingItems().length;
+
+    this.store.addReceipt(
+      {
+        ...this.draft,
+        items,
+        matchedShoppingItemIds: matched,
+      },
+      { clearGathered: fromCheckout || matched.length > 0 },
+    );
+
+    const cleared = beforeCount - this.store.shoppingItems().length;
+    if (cleared > 0) {
+      this.checkoutSuccess.set(
+        `Checkout complete — ${cleared} gathered item${cleared === 1 ? '' : 's'} cleared from your shopping list.`,
+      );
+    }
     this.closeModal();
   }
 

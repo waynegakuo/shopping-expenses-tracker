@@ -134,10 +134,16 @@ export class ExpenseStoreService {
     this.shoppingItems.update((items) => items.filter((item) => item.id !== id));
   }
 
-  addReceipt(receipt: Omit<Receipt, 'id'>): Receipt {
+  addReceipt(
+    receipt: Omit<Receipt, 'id'>,
+    options?: { clearGathered?: boolean },
+  ): Receipt {
     const created: Receipt = { ...receipt, id: `rec-${crypto.randomUUID().slice(0, 8)}` };
     this.receipts.update((list) => [created, ...list]);
     this.recordPurchasesFromReceipt(created);
+    if (options?.clearGathered) {
+      this.clearGatheredAfterCheckout(created.matchedShoppingItemIds ?? []);
+    }
     return created;
   }
 
@@ -176,6 +182,15 @@ export class ExpenseStoreService {
     this.shoppingItems.set(structuredClone(INITIAL_MOCK_SHOPPING_LIST));
     this.receipts.set(structuredClone(INITIAL_MOCK_RECEIPTS));
     this.purchaseHistory.set(structuredClone(INITIAL_MOCK_PURCHASE_HISTORY));
+  }
+
+  private clearGatheredAfterCheckout(matchedIds: string[]): void {
+    this.shoppingItems.update((items) => {
+      if (matchedIds.length > 0) {
+        return items.filter((item) => !matchedIds.includes(item.id));
+      }
+      return items.filter((item) => !item.completed);
+    });
   }
 
   private recordPurchasesFromReceipt(receipt: Receipt): void {
