@@ -1,15 +1,15 @@
 <section class="mx-auto max-w-6xl px-4 py-8">
   <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div>
-          <span class="inline-block border-2 border-black bg-white px-3 py-1 font-mono text-xs font-bold uppercase">
-            Expense Logger
-          </span>
+      <span class="inline-block border-2 border-black bg-white px-3 py-1 font-mono text-xs font-bold uppercase">
+        Expense Logger
+      </span>
       <h2 class="mt-3 border-4 border-black bg-white px-4 py-2 font-display text-3xl font-black uppercase shadow-[8px_8px_0_0_#000000]">
         Receipts
       </h2>
     </div>
     <button type="button" (click)="openModal()" class="brutal-btn bg-brutal-yellow text-black">
-      + Upload / Manual Entry
+      + Add Receipt
     </button>
   </div>
 
@@ -43,15 +43,20 @@
               [class.bg-brutal-green]="receipt.isTaxDeductible"
               [class.bg-brutal-pink]="!receipt.isTaxDeductible"
             >
-                  {{ receipt.isTaxDeductible ? 'KRA Deductible' : 'Personal' }}
-                </span>
+              {{ receipt.isTaxDeductible ? 'KRA Deductible' : 'Personal' }}
+            </span>
           </div>
         </div>
         <ul class="mt-4 space-y-1 border-t-2 border-black pt-3 font-mono text-sm">
           @for (line of receipt.items; track line.description) {
-            <li class="flex justify-between">
-              <span>{{ line.description }}</span>
-              <span>KES {{ line.amountKes | number }}</span>
+            <li class="flex justify-between gap-4">
+              <span>
+                @if (line.quantity > 1) {
+                  <span class="font-bold">{{ line.quantity }}×</span>
+                }
+                {{ line.description }}
+              </span>
+              <span class="shrink-0">KES {{ line.amountKes | number }}</span>
             </li>
           }
         </ul>
@@ -75,7 +80,7 @@
 @if (modalOpen()) {
   <div class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-10">
     <div
-      class="w-full max-w-2xl border-4 border-black bg-white shadow-[8px_8px_0_0_#000000]"
+      class="w-full max-w-3xl border-4 border-black bg-white shadow-[8px_8px_0_0_#000000]"
       role="dialog"
       aria-modal="true"
     >
@@ -87,23 +92,95 @@
       </div>
 
       <form (ngSubmit)="submitReceipt()" class="space-y-5 p-5">
-        <!-- Dropzone -->
-        <div
-          class="border-4 border-dashed border-black bg-brutal-charcoal/5 p-8 text-center"
-          (dragover)="onDragOver($event)"
-          (drop)="onDrop($event)"
-        >
-          <p class="font-mono text-sm font-bold uppercase">Drag & Drop Receipt Image</p>
-          <p class="mt-1 font-mono text-xs">or use camera / file picker</p>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            (change)="onFileSelected($event)"
-            class="mt-4 w-full font-mono text-xs"
-          />
-          @if (uploadedFileName()) {
-            <p class="mt-2 font-mono text-xs text-brutal-green">Attached: {{ uploadedFileName() }}</p>
+        <!-- Entry Mode Tabs -->
+        <div class="border-4 border-black">
+          <div class="flex border-b-4 border-black" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="entryMode() === 'scan'"
+              (click)="setEntryMode('scan')"
+              class="flex-1 border-r-4 border-black px-4 py-3 font-mono text-sm font-bold uppercase"
+              [class.bg-brutal-green]="entryMode() === 'scan'"
+              [class.shadow-[inset_4px_4px_0_0_#000000]]="entryMode() === 'scan'"
+            >
+              📷 Scan Receipt
+            </button>
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="entryMode() === 'manual'"
+              (click)="setEntryMode('manual')"
+              class="flex-1 px-4 py-3 font-mono text-sm font-bold uppercase"
+              [class.bg-brutal-yellow]="entryMode() === 'manual'"
+              [class.shadow-[inset_4px_4px_0_0_#000000]]="entryMode() === 'manual'"
+            >
+              ✏️ Manual Entry
+            </button>
+          </div>
+
+          @if (entryMode() === 'scan') {
+            <div
+              class="p-5"
+              (dragover)="onDragOver($event)"
+              (drop)="onDrop($event)"
+            >
+              <p class="font-mono text-xs font-bold uppercase">Snap or upload your receipt</p>
+              <p class="mt-1 font-mono text-xs text-brutal-charcoal/70">
+                OCR extracts item names, quantities, and amounts — review and edit below before saving.
+              </p>
+
+              <div class="mt-4 flex flex-wrap gap-3">
+                <label class="brutal-btn cursor-pointer bg-brutal-green text-black">
+                  📷 Take Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    class="hidden"
+                    (change)="onFileSelected($event)"
+                  />
+                </label>
+                <label class="brutal-btn cursor-pointer bg-white text-black">
+                  ↑ Upload Image
+                  <input type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)" />
+                </label>
+              </div>
+
+              @if (scanner.receiptScanState().status === 'scanning') {
+                <div class="mt-4 border-2 border-black bg-white p-1">
+                  <div
+                    class="h-4 bg-brutal-yellow transition-all"
+                    [style.width.%]="scanner.receiptScanState().progress"
+                  ></div>
+                </div>
+                <p class="mt-2 font-mono text-xs">{{ scanner.receiptScanState().message }}</p>
+              }
+
+              @if (scanner.receiptPreviewUrl() && scanner.receiptScanState().status !== 'scanning') {
+                <img
+                  [src]="scanner.receiptPreviewUrl()"
+                  alt="Receipt preview"
+                  class="mt-4 max-h-40 border-4 border-black object-contain shadow-[4px_4px_0_0_#000000]"
+                />
+              }
+
+              @if (scanner.receiptScanState().status === 'error') {
+                <p class="mt-3 border-2 border-black bg-brutal-pink px-3 py-2 font-mono text-xs font-bold uppercase">
+                  {{ scanner.receiptScanState().message }}
+                </p>
+              }
+
+              @if (ocrReviewReady()) {
+                <p class="mt-3 border-2 border-black bg-brutal-green px-3 py-2 font-mono text-xs font-bold uppercase">
+                  {{ scanner.receiptScanState().message }} — edit line items below, then save.
+                </p>
+              }
+            </div>
+          } @else {
+            <p class="p-5 font-mono text-xs text-brutal-charcoal/70">
+              Enter receipt details and line items manually below.
+            </p>
           }
         </div>
 
@@ -145,16 +222,38 @@
           </div>
         </div>
 
-        <!-- Line Items -->
-        <div>
-          <p class="brutal-label mb-2">Line Items</p>
+        <!-- Line Items Preview / Edit -->
+        <div class="border-4 border-black bg-brutal-charcoal/5 p-4">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p class="brutal-label mb-0">Line Items</p>
+            <p class="font-mono text-xs font-bold">
+              Subtotal: KES {{ lineItemsSubtotal() | number }}
+            </p>
+          </div>
+
+          <div class="mb-2 hidden gap-2 font-mono text-xs font-bold uppercase sm:grid sm:grid-cols-12">
+            <span class="sm:col-span-1">Qty</span>
+            <span class="sm:col-span-6">Item</span>
+            <span class="sm:col-span-3">Amount (KES)</span>
+            <span class="sm:col-span-2"></span>
+          </div>
+
           @for (line of draft.items; track $index; let i = $index) {
-            <div class="mb-2 grid grid-cols-5 gap-2">
+            <div class="mb-2 grid grid-cols-12 gap-2">
+              <input
+                [(ngModel)]="line.quantity"
+                [name]="'qty-' + i"
+                type="number"
+                min="1"
+                placeholder="Qty"
+                (ngModelChange)="recalculateTotal()"
+                class="brutal-input col-span-2 sm:col-span-1"
+              />
               <input
                 [(ngModel)]="line.description"
                 [name]="'desc-' + i"
-                placeholder="Description"
-                class="brutal-input col-span-3"
+                placeholder="Item name"
+                class="brutal-input col-span-12 sm:col-span-6"
               />
               <input
                 [(ngModel)]="line.amountKes"
@@ -162,19 +261,24 @@
                 type="number"
                 min="0"
                 placeholder="KES"
-                class="brutal-input"
+                (ngModelChange)="recalculateTotal()"
+                class="brutal-input col-span-8 sm:col-span-3"
               />
-              <button type="button" (click)="removeLineItem(i)" class="brutal-btn bg-brutal-pink text-white text-xs">
-                ✕
+              <button
+                type="button"
+                (click)="removeLineItem(i)"
+                class="brutal-btn col-span-4 bg-brutal-pink text-xs text-white sm:col-span-2"
+              >
+                ✕ Remove
               </button>
             </div>
           }
+
           <button type="button" (click)="addLineItem()" class="brutal-btn mt-1 bg-white text-sm">
             + Line Item
           </button>
         </div>
 
-        <!-- Reconciliation -->
         @if (store.completedItems().length) {
           <div class="border-4 border-black bg-brutal-green/30 p-4">
             <p class="mb-3 font-mono text-xs font-bold uppercase">Match Shopping Items</p>
@@ -198,9 +302,7 @@
           <button type="submit" class="brutal-btn flex-1 bg-black text-brutal-yellow">
             Save Receipt
           </button>
-          <button type="button" (click)="closeModal()" class="brutal-btn bg-white">
-            Cancel
-          </button>
+          <button type="button" (click)="closeModal()" class="brutal-btn bg-white">Cancel</button>
         </div>
       </form>
     </div>

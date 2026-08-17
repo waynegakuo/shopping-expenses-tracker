@@ -63,6 +63,7 @@ export interface PriceIncrease {
 
 export interface ReceiptLineItem {
   description: string;
+  quantity: number;
   amountKes: number;
 }
 

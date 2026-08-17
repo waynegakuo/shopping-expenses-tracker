@@ -223,13 +223,23 @@ export class ExpenseStoreService {
     this.purchaseHistory.update((history) => [...records, ...history]);
   }
 
+  private normalizeReceipts(receipts: Receipt[]): Receipt[] {
+    return receipts.map((receipt) => ({
+      ...receipt,
+      items: receipt.items.map((item) => ({
+        ...item,
+        quantity: item.quantity ?? 1,
+      })),
+    }));
+  }
+
   private hydrateFromStorage(): void {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as PersistedState;
         this.shoppingItems.set(parsed.shoppingItems ?? INITIAL_MOCK_SHOPPING_LIST);
-        this.receipts.set(parsed.receipts ?? INITIAL_MOCK_RECEIPTS);
+        this.receipts.set(this.normalizeReceipts(parsed.receipts ?? INITIAL_MOCK_RECEIPTS));
         this.purchaseHistory.set(parsed.purchaseHistory ?? INITIAL_MOCK_PURCHASE_HISTORY);
         return;
       }
@@ -249,7 +259,7 @@ export class ExpenseStoreService {
             completed,
           })),
         );
-        this.receipts.set(legacy.receipts ?? INITIAL_MOCK_RECEIPTS);
+        this.receipts.set(this.normalizeReceipts(legacy.receipts ?? INITIAL_MOCK_RECEIPTS));
         this.purchaseHistory.set(INITIAL_MOCK_PURCHASE_HISTORY);
         return;
       }

@@ -20,7 +20,7 @@ export const INITIAL_MOCK_RECEIPTS: Receipt[] = [
     vatRate: '16%',
     isTaxDeductible: true,
     deductibleCategory: 'Home Office',
-    items: [{ description: 'USB-C Fast Charger & Hub', amountKes: 4500 }],
+    items: [{ description: 'USB-C Fast Charger & Hub', quantity: 1, amountKes: 4500 }],
     matchedShoppingItemIds: ['5'],
   },
   {
@@ -34,9 +34,9 @@ export const INITIAL_MOCK_RECEIPTS: Receipt[] = [
     vatRate: '16%',
     isTaxDeductible: false,
     items: [
-      { description: 'Fresh Milk 1L', amountKes: 72 },
-      { description: 'Bread Loaf', amountKes: 55 },
-      { description: 'Rice 2kg', amountKes: 350 },
+      { description: 'Fresh Milk 1L', quantity: 1, amountKes: 72 },
+      { description: 'Bread Loaf', quantity: 1, amountKes: 55 },
+      { description: 'Rice 2kg', quantity: 1, amountKes: 350 },
     ],
     matchedShoppingItemIds: ['1', '2', '3'],
   },
@@ -51,9 +51,9 @@ export const INITIAL_MOCK_RECEIPTS: Receipt[] = [
     vatRate: '16%',
     isTaxDeductible: false,
     items: [
-      { description: 'Fresh Milk 1L', amountKes: 65 },
-      { description: 'Bread Loaf', amountKes: 55 },
-      { description: 'Rice 2kg', amountKes: 320 },
+      { description: 'Fresh Milk 1L', quantity: 1, amountKes: 65 },
+      { description: 'Bread Loaf', quantity: 1, amountKes: 55 },
+      { description: 'Rice 2kg', quantity: 1, amountKes: 320 },
     ],
   },
 ];

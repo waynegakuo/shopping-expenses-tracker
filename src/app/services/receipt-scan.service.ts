@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { ExtractedShoppingItem } from '../models/extracted-item.model';
-import { parseShoppingListText } from './receipt-text-parser';
+import { ParsedReceiptOcr } from '../models/extracted-receipt.model';
+import { parseReceiptLineItemsText, parseShoppingListText } from './receipt-text-parser';
 
 export type ScanProgress = {
   status: 'idle' | 'scanning' | 'done' | 'error';
@@ -18,38 +19,27 @@ export class ReceiptScanService {
 
   readonly previewUrl = signal<string | null>(null);
 
+  readonly receiptScanState = signal<ScanProgress>({
+    status: 'idle',
+    progress: 0,
+    message: '',
+  });
+
+  readonly receiptPreviewUrl = signal<string | null>(null);
+
   async extractItemsFromImage(file: File): Promise<ExtractedShoppingItem[]> {
-    this.setPreview(file);
-    this.scanState.set({ status: 'scanning', progress: 0, message: 'Reading receipt…' });
+    this.setPreview(file, 'shopping');
+    this.scanState.set({ status: 'scanning', progress: 0, message: 'Reading list…' });
 
     try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng', 1, {
-        logger: (info) => {
-          if (info.status === 'recognizing text') {
-            const progress = Math.round((info.progress ?? 0) * 100);
-            this.scanState.set({
-              status: 'scanning',
-              progress,
-              message: `Extracting text… ${progress}%`,
-            });
-          }
-        },
-      });
-
-      const {
-        data: { text },
-      } = await worker.recognize(file);
-      await worker.terminate();
-
+      const text = await this.runOcr(file, 'shopping');
       const items = parseShoppingListText(text);
 
       if (items.length === 0) {
         this.scanState.set({
           status: 'error',
           progress: 100,
-          message:
-            'No line items detected. Try a clearer photo with item names and prices visible.',
+          message: 'No items detected. Try a clearer photo of your shopping list.',
         });
         return [];
       }
@@ -70,20 +60,90 @@ export class ReceiptScanService {
     }
   }
 
+  async extractReceiptFromImage(file: File): Promise<ParsedReceiptOcr | null> {
+    this.setPreview(file, 'receipt');
+    this.receiptScanState.set({ status: 'scanning', progress: 0, message: 'Reading receipt…' });
+
+    try {
+      const text = await this.runOcr(file, 'receipt');
+      const parsed = parseReceiptLineItemsText(text);
+
+      if (parsed.lineItems.length === 0) {
+        this.receiptScanState.set({
+          status: 'error',
+          progress: 100,
+          message:
+            'No line items detected. Try a clearer photo showing item names, quantities, and amounts.',
+        });
+        return null;
+      }
+
+      this.receiptScanState.set({
+        status: 'done',
+        progress: 100,
+        message: `Found ${parsed.lineItems.length} line item${parsed.lineItems.length === 1 ? '' : 's'}`,
+      });
+      return parsed;
+    } catch {
+      this.receiptScanState.set({
+        status: 'error',
+        progress: 0,
+        message: 'Scan failed. Retake the photo or enter line items manually.',
+      });
+      return null;
+    }
+  }
+
   clearPreview(): void {
-    const url = this.previewUrl();
+    this.clearPreviewFor('shopping');
+  }
+
+  clearReceiptPreview(): void {
+    this.clearPreviewFor('receipt');
+  }
+
+  private async runOcr(file: File, mode: 'shopping' | 'receipt'): Promise<string> {
+    const stateSignal = mode === 'shopping' ? this.scanState : this.receiptScanState;
+
+    const { createWorker } = await import('tesseract.js');
+    const worker = await createWorker('eng', 1, {
+      logger: (info) => {
+        if (info.status === 'recognizing text') {
+          const progress = Math.round((info.progress ?? 0) * 100);
+          stateSignal.set({
+            status: 'scanning',
+            progress,
+            message: `Extracting text… ${progress}%`,
+          });
+        }
+      },
+    });
+
+    const {
+      data: { text },
+    } = await worker.recognize(file);
+    await worker.terminate();
+    return text;
+  }
+
+  private clearPreviewFor(mode: 'shopping' | 'receipt'): void {
+    const urlSignal = mode === 'shopping' ? this.previewUrl : this.receiptPreviewUrl;
+    const stateSignal = mode === 'shopping' ? this.scanState : this.receiptScanState;
+
+    const url = urlSignal();
     if (url) {
       URL.revokeObjectURL(url);
     }
-    this.previewUrl.set(null);
-    this.scanState.set({ status: 'idle', progress: 0, message: '' });
+    urlSignal.set(null);
+    stateSignal.set({ status: 'idle', progress: 0, message: '' });
   }
 
-  private setPreview(file: File): void {
-    const previous = this.previewUrl();
+  private setPreview(file: File, mode: 'shopping' | 'receipt'): void {
+    const urlSignal = mode === 'shopping' ? this.previewUrl : this.receiptPreviewUrl;
+    const previous = urlSignal();
     if (previous) {
       URL.revokeObjectURL(previous);
     }
-    this.previewUrl.set(URL.createObjectURL(file));
+    urlSignal.set(URL.createObjectURL(file));
   }
 }
