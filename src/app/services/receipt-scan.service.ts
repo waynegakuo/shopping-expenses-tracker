@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { ExtractedShoppingItem } from '../models/extracted-item.model';
-import { parseReceiptText } from './receipt-text-parser';
+import { parseShoppingListText } from './receipt-text-parser';
 
 export type ScanProgress = {
   status: 'idle' | 'scanning' | 'done' | 'error';
@@ -42,7 +42,7 @@ export class ReceiptScanService {
       } = await worker.recognize(file);
       await worker.terminate();
 
-      const items = parseReceiptText(text);
+      const items = parseShoppingListText(text);
 
       if (items.length === 0) {
         this.scanState.set({

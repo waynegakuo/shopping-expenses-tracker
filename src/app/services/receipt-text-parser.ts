@@ -2,12 +2,13 @@ import { ShoppingCategory } from '../models/expense.model';
 import { ExtractedShoppingItem } from '../models/extracted-item.model';
 
 const SKIP_LINE =
-  /^(total|sub\s*total|vat|tax|change|cash|mpesa|m-?pesa|balance|receipt|thank|welcome|pin|etr|kra|date|time|qty|quantity|amount|kes|ksh|grand|net|gross|paid|tender|invoice|tel|phone|www|http|@|\*+)/i;
+  /^(total|sub\s*total|vat|tax|change|cash|mpesa|m-?pesa|balance|receipt|thank|welcome|pin|etr|kra|date|time|qty|quantity|amount|kes|ksh|grand|net|gross|paid|tender|invoice|tel|phone|www|http|@|\*+|shopping\s*list|items?)/i;
 
 const PRICE_SUFFIX =
   /^(.*?)\s+(?:KES|KSH|K\.?\s?)?([\d]{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2}|\d+)\s*$/i;
 
-const QTY_PREFIX = /^\d+\s*[x×*]\s*/i;
+const QTY_PREFIX = /^\d+\s*[x×*.\)]\s*/i;
+const BULLET_PREFIX = /^[-•*]\s*/;
 
 const CATEGORY_KEYWORDS: Record<ShoppingCategory, RegExp[]> = {
   Groceries: [
@@ -24,6 +25,48 @@ const CATEGORY_KEYWORDS: Record<ShoppingCategory, RegExp[]> = {
   ],
 };
 
+/** Parse a handwritten/printed shopping list — names only, prices ignored. */
+export function parseShoppingListText(text: string): ExtractedShoppingItem[] {
+  const seen = new Set<string>();
+  const items: ExtractedShoppingItem[] = [];
+
+  for (const rawLine of text.split('\n')) {
+    let line = rawLine.replace(/\s+/g, ' ').trim();
+    line = line.replace(BULLET_PREFIX, '').replace(QTY_PREFIX, '');
+
+    if (line.length < 2 || SKIP_LINE.test(line)) {
+      continue;
+    }
+
+    // Strip trailing price if present — we only want the item name
+    const priceMatch = line.match(PRICE_SUFFIX);
+    const name = (priceMatch ? priceMatch[1] : line).replace(/[@#|]+/g, ' ').trim();
+
+    if (name.length < 2 || /^\d+$/.test(name)) {
+      continue;
+    }
+
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(name)) {
+      continue;
+    }
+
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+
+    items.push({
+      name: capitalizeWords(name),
+      category: inferCategory(name),
+      selected: true,
+    });
+  }
+
+  return items;
+}
+
+/** @deprecated Use parseShoppingListText for shopping list scans. Kept for receipt OCR. */
 export function parseReceiptText(text: string): ExtractedShoppingItem[] {
   const seen = new Set<string>();
   const items: ExtractedShoppingItem[] = [];
@@ -39,19 +82,12 @@ export function parseReceiptText(text: string): ExtractedShoppingItem[] {
       continue;
     }
 
-    let name = match[1].replace(QTY_PREFIX, '').replace(/[@#|]+/g, ' ').trim();
-    const cost = parseKesAmount(match[2]);
-
-    if (name.length < 2 || cost <= 0 || cost > 5_000_000) {
+    const name = match[1].replace(QTY_PREFIX, '').replace(/[@#|]+/g, ' ').trim();
+    if (name.length < 2) {
       continue;
     }
 
-    // Skip lines that look like dates or receipt numbers only
-    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(name)) {
-      continue;
-    }
-
-    const key = `${name.toLowerCase()}-${cost}`;
+    const key = name.toLowerCase();
     if (seen.has(key)) {
       continue;
     }
@@ -59,7 +95,6 @@ export function parseReceiptText(text: string): ExtractedShoppingItem[] {
 
     items.push({
       name: capitalizeWords(name),
-      estimatedCostKes: cost,
       category: inferCategory(name),
       selected: true,
     });
@@ -78,12 +113,6 @@ export function inferCategory(name: string): ShoppingCategory {
     }
   }
   return 'Groceries';
-}
-
-function parseKesAmount(raw: string): number {
-  const normalized = raw.replace(/[,\s]/g, '');
-  const value = Number.parseFloat(normalized);
-  return Number.isFinite(value) ? Math.round(value) : 0;
 }
 
 function capitalizeWords(value: string): string {

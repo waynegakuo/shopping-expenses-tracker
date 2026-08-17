@@ -16,12 +16,49 @@ export type DeductibleCategory =
   | 'Hardware'
   | 'Business Meals';
 
+/** Active list item — no price until checkout at the supermarket. */
 export interface ShoppingItem {
   id: string;
   name: string;
   category: ShoppingCategory;
-  estimatedCostKes: number;
   completed: boolean;
+}
+
+/** Recorded price from a completed shopping run (receipt). */
+export interface PurchaseRecord {
+  id: string;
+  itemName: string;
+  normalizedName: string;
+  category: ShoppingCategory;
+  amountKes: number;
+  merchantName: string;
+  date: string;
+  receiptId: string;
+  shoppingItemId?: string;
+}
+
+export interface ItemPriceInsight {
+  lastPrice?: number;
+  lastDate?: string;
+  lastMerchant?: string;
+  previousPrice?: number;
+  changeKes?: number;
+  changePercent?: number;
+  increased: boolean;
+  decreased: boolean;
+  isNew: boolean;
+}
+
+export interface PriceIncrease {
+  itemName: string;
+  category: ShoppingCategory;
+  currentPrice: number;
+  previousPrice: number;
+  changeKes: number;
+  changePercent: number;
+  currentDate: string;
+  previousDate: string;
+  merchantName: string;
 }
 
 export interface ReceiptLineItem {
@@ -47,4 +84,5 @@ export interface Receipt {
 export interface PersistedState {
   shoppingItems: ShoppingItem[];
   receipts: Receipt[];
+  purchaseHistory: PurchaseRecord[];
 }

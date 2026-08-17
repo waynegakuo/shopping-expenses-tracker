@@ -1,15 +1,15 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ShoppingCategory } from '../../models/expense.model';
+import { ItemPriceInsight, ShoppingCategory } from '../../models/expense.model';
 import { ExtractedShoppingItem } from '../../models/extracted-item.model';
 import { ExpenseStoreService } from '../../services/expense-store.service';
 import { ReceiptScanService } from '../../services/receipt-scan.service';
 
 @Component({
   selector: 'app-shopping-list',
-  imports: [FormsModule, RouterLink, DecimalPipe],
+  imports: [FormsModule, RouterLink, DecimalPipe, DatePipe],
   templateUrl: 'shopping-list.html',
 })
 export class ShoppingList {
@@ -29,19 +29,21 @@ export class ShoppingList {
 
   newName = '';
   newCategory: ShoppingCategory = 'Groceries';
-  newCost: number | null = null;
 
   setAddMode(mode: 'scan' | 'manual'): void {
     this.addMode.set(mode);
   }
 
   addItem(): void {
-    if (!this.newName.trim() || this.newCost === null || this.newCost < 0) {
+    if (!this.newName.trim()) {
       return;
     }
-    this.store.addShoppingItem(this.newName, this.newCategory, this.newCost);
+    this.store.addShoppingItem(this.newName, this.newCategory);
     this.newName = '';
-    this.newCost = null;
+  }
+
+  insight(itemName: string): ItemPriceInsight {
+    return this.store.getItemPriceInsight(itemName);
   }
 
   onScanDragOver(event: DragEvent): void {
@@ -80,9 +82,7 @@ export class ShoppingList {
   }
 
   confirmExtractedItems(): void {
-    const selected = this.extractedItems().filter(
-      (item) => item.selected && item.name.trim() && item.estimatedCostKes > 0,
-    );
+    const selected = this.extractedItems().filter((item) => item.selected && item.name.trim());
     if (selected.length === 0) {
       return;
     }
